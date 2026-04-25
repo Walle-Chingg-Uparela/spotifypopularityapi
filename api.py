@@ -80,43 +80,57 @@ def crear_features(df):
 # ENDPOINT
 # ============================================================
 
-@app.post("/predict")
+app.post("/predict")
 def predict(song: SongInput):
 
-    df = pd.DataFrame([song.dict()])
-    df = crear_features(df)
+    try:
+        # -------------------------
+        # DataFrame
+        # -------------------------
+        df = pd.DataFrame([song.dict()])
+        df = crear_features(df)
 
-    # columnas necesarias
-    df['artists_te'] = 0
-    df['track_id'] = 0
+        # columnas dummy necesarias
+        df['artists_te'] = 0
 
-    # TF-IDF (ANTES de modificar columnas)
-    X_tfidf = tfidf.transform(df['track_name'])
+        # -------------------------
+        # TF-IDF (ANTES)
+        # -------------------------
+        X_tfidf = tfidf.transform(df['track_name'])
 
-    # asegurar columnas esperadas
-    expected_cols = pre.feature_names_in_
+        # -------------------------
+        # TABULAR
+        # -------------------------
+        X_tab = df.drop(columns=['track_name'], errors='ignore')
 
-    for col in expected_cols:
-      if col not in df.columns:
-        df[col] = 0
+        # 🔥 asegurar TODAS las columnas que vio el preprocessor
+        for col in pre.feature_names_in_:
+            if col not in X_tab.columns:
+                X_tab[col] = 0
 
-    df = df[expected_cols]
+        # 🔥 ordenar correctamente
+        X_tab = X_tab[pre.feature_names_in_]
 
-    # tabular
-    X_prep = pre.transform(df)
+        X_prep = pre.transform(X_tab)
 
-    # merge
-    X_final = hstack([X_prep, X_tfidf])
+        # -------------------------
+        # CONCATENAR
+        # -------------------------
+        X_final = hstack([X_prep, X_tfidf])
 
-    # modelos
-    pred_xgb = xgb_model.predict(X_final)
-    pred_lgb = lgb_model.predict(X_final)
-    pred_rf = rf_model.predict(X_final)
+        # -------------------------
+        # MODELOS
+        # -------------------------
+        pred_xgb = xgb_model.predict(X_final)
+        pred_lgb = lgb_model.predict(X_final)
+        pred_rf = rf_model.predict(X_final)
 
-    # stacking
-    X_meta = np.column_stack([pred_xgb, pred_lgb, pred_rf])
-    final_pred = meta.predict(X_meta)
+        X_meta = np.column_stack([pred_xgb, pred_lgb, pred_rf])
+        final_pred = meta.predict(X_meta)
 
-    final_pred = float(np.clip(final_pred, 0, 100)[0])
+        final_pred = float(np.clip(final_pred, 0, 100)[0])
 
-    return {"predicted_popularity": final_pred}
+        return {"predicted_popularity": final_pred}
+
+    except Exception as e:
+        return {"error": str(e)}
