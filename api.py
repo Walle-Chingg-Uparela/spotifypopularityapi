@@ -90,17 +90,17 @@ def predict(song: SongInput):
     df['artists_te'] = 0
     df['track_id'] = 0
 
-    # asegurar columnas del preprocessor
+    # TF-IDF (ANTES de modificar columnas)
+    X_tfidf = tfidf.transform(df['track_name'])
+
+    # asegurar columnas esperadas
     expected_cols = pre.feature_names_in_
 
     for col in expected_cols:
-        if col not in df.columns:
-            df[col] = 0
+      if col not in df.columns:
+        df[col] = 0
 
     df = df[expected_cols]
-
-    # TF-IDF
-    X_tfidf = tfidf.transform(df['track_name'])
 
     # tabular
     X_prep = pre.transform(df)
