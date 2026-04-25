@@ -122,7 +122,6 @@ def predict(song: SongInput):
 
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Spotify Popularity Predictor")
 
 app.add_middleware(
     CORSMiddleware,
