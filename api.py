@@ -11,22 +11,22 @@ from pydantic import BaseModel
 from scipy.sparse import hstack
 
 # ============================================================
-# API (PRIMERO)
+# CREAR APP (SOLO UNA VEZ)
 # ============================================================
 
 app = FastAPI(title="Spotify Popularity Predictor")
 
-# ✅ CORS BIEN UBICADO
+# ✅ CORS (IMPORTANTE)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # puedes restringir luego a tu frontend
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ============================================================
-# CARGAR MODELOS UNA VEZ
+# CARGAR MODELOS
 # ============================================================
 
 print("Cargando modelos...")
@@ -42,7 +42,7 @@ meta = joblib.load('meta_model.pkl')
 print("Modelos cargados")
 
 # ============================================================
-# INPUT SCHEMA
+# INPUT
 # ============================================================
 
 class SongInput(BaseModel):
@@ -83,36 +83,32 @@ def crear_features(df):
 @app.post("/predict")
 def predict(song: SongInput):
 
-    # convertir a DataFrame
     df = pd.DataFrame([song.dict()])
-
-    # features
     df = crear_features(df)
 
-    # columnas necesarias del entrenamiento
+    # columnas necesarias
     df['artists_te'] = 0
     df['track_id'] = 0
 
-    # TF-IDF
-    X_tfidf = tfidf.transform(df['track_name'])
-
-    # asegurar columnas esperadas
+    # asegurar columnas del preprocessor
     expected_cols = pre.feature_names_in_
 
     for col in expected_cols:
         if col not in df.columns:
             df[col] = 0
 
-    # ordenar columnas como en train
-    X_tab = df[expected_cols]
+    df = df[expected_cols]
 
-    # preprocesamiento
-    X_prep = pre.transform(X_tab)
+    # TF-IDF
+    X_tfidf = tfidf.transform(df['track_name'])
 
-    # combinar
+    # tabular
+    X_prep = pre.transform(df)
+
+    # merge
     X_final = hstack([X_prep, X_tfidf])
 
-    # modelos base
+    # modelos
     pred_xgb = xgb_model.predict(X_final)
     pred_lgb = lgb_model.predict(X_final)
     pred_rf = rf_model.predict(X_final)
