@@ -6,12 +6,24 @@ import numpy as np
 import joblib
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scipy.sparse import hstack
 
+# ============================================================
+# API (PRIMERO)
+# ============================================================
 
+app = FastAPI(title="Spotify Popularity Predictor")
 
-
+# ✅ CORS BIEN UBICADO
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # puedes restringir luego a tu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ============================================================
 # CARGAR MODELOS UNA VEZ
@@ -30,12 +42,6 @@ meta = joblib.load('meta_model.pkl')
 print("Modelos cargados")
 
 # ============================================================
-# API
-# ============================================================
-
-app = FastAPI(title="Spotify Popularity Predictor")
-
-# ============================================================
 # INPUT SCHEMA
 # ============================================================
 
@@ -47,7 +53,6 @@ class SongInput(BaseModel):
     duration_ms: float
     energy: float
     danceability: float
-
 
 # ============================================================
 # FEATURE ENGINEERING
@@ -71,7 +76,6 @@ def crear_features(df):
 
     return df
 
-
 # ============================================================
 # ENDPOINT
 # ============================================================
@@ -85,26 +89,27 @@ def predict(song: SongInput):
     # features
     df = crear_features(df)
 
-   
+    # columnas necesarias del entrenamiento
     df['artists_te'] = 0
-
     df['track_id'] = 0
 
     # TF-IDF
     X_tfidf = tfidf.transform(df['track_name'])
 
-    # tabular
-   # asegurar columnas esperadas
+    # asegurar columnas esperadas
     expected_cols = pre.feature_names_in_
 
     for col in expected_cols:
-     if col not in df.columns:
-        df[col] = 0
+        if col not in df.columns:
+            df[col] = 0
 
-     # ordenar columnas igual que en train
+    # ordenar columnas como en train
     X_tab = df[expected_cols]
+
+    # preprocesamiento
     X_prep = pre.transform(X_tab)
 
+    # combinar
     X_final = hstack([X_prep, X_tfidf])
 
     # modelos base
@@ -119,14 +124,3 @@ def predict(song: SongInput):
     final_pred = float(np.clip(final_pred, 0, 100)[0])
 
     return {"predicted_popularity": final_pred}
-
-from fastapi.middleware.cors import CORSMiddleware
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # o puedes poner tu frontend específico
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
