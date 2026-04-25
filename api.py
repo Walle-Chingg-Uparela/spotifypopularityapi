@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from scipy.sparse import hstack
 
-from fastapi.middleware.cors import CORSMiddleware
+
 
 
 
@@ -120,9 +120,13 @@ def predict(song: SongInput):
 
     return {"predicted_popularity": final_pred}
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Spotify Popularity Predictor")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # o puedes poner tu frontend específico
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
